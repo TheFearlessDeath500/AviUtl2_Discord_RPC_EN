@@ -4,6 +4,8 @@
 #include <process.h>
 #include <string>
 #include <shlwapi.h>
+#include <iostream>
+#include <chrono>
 #include "discord_rpc.h"
 #include "plugin2.h"
 
@@ -14,6 +16,7 @@
 #define MENU_ID 1000 
 #define MENU_ID_ENABLE_RPC 1001
 #define MENU_ID_SHOW_PFNAME 1002
+
 
 WNDPROC g_pfnOriginalWndProc = NULL;
 HWND    g_hExEdit2 = NULL;
@@ -27,6 +30,9 @@ void Update();
 bool isrpcenable = false;
 bool ispfname = false;
 HINSTANCE hInstance;
+static EDIT_HANDLE* g_edit_handle = nullptr;
+int current_frame = 0;
+const char* edit_state = nullptr;
 
 std::string GetConfigIniPath()
 {
@@ -67,7 +73,7 @@ std::string WcharToChar(const wchar_t* wide_str) {
 	return result;
 }
 unsigned __stdcall Add_PopupMenu(void* pArguments) {
-	g_hExEdit2 = FindWindowW(L"aviutl2Manager", NULL);
+	//g_hExEdit2 = FindWindowW(L"aviutl2Manager", NULL);
 	if (!g_hExEdit2) {
 	}
 
@@ -78,14 +84,15 @@ unsigned __stdcall Add_PopupMenu(void* pArguments) {
 	hRpcMenu = CreatePopupMenu();
 
 	UINT rpcFlag = isrpcenable ? MF_CHECKED : MF_UNCHECKED;
-	AppendMenuW(hRpcMenu, MF_STRING | rpcFlag, MENU_ID_ENABLE_RPC, L"RPC‚ð—LŒø‰»");
+	AppendMenuW(hRpcMenu, MF_STRING | rpcFlag, MENU_ID_ENABLE_RPC, L"RPCã‚’æœ‰åŠ¹åŒ–");
 
 	UINT pfnameFlag = ispfname ? MF_CHECKED : MF_UNCHECKED;
-	AppendMenuW(hRpcMenu, MF_STRING | pfnameFlag, MENU_ID_SHOW_PFNAME, L"ƒvƒƒWƒFƒNƒg–¼‚ð•\Ž¦");
-	AppendMenuW(g_hViewMenu, MF_POPUP, (UINT_PTR)hRpcMenu, L"DiscordRPC‚ÌÝ’è");
+	AppendMenuW(hRpcMenu, MF_STRING | pfnameFlag, MENU_ID_SHOW_PFNAME, L"ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆåã‚’è¡¨ç¤º");
+	AppendMenuW(g_hViewMenu, MF_POPUP, (UINT_PTR)hRpcMenu, L"DiscordRPCã®è¨­å®š");
 	g_pfnOriginalWndProc = (WNDPROC)SetWindowLongPtrW(g_hExEdit2, GWLP_WNDPROC, (LONG_PTR)RPCSetting);
-	InitDiscord();
+	Sleep(2000);
 	Update();
+	return 0;
 }
 
 void InitDiscord()
@@ -100,37 +107,50 @@ void InitDiscord()
 }
 
 void UpdateDiscordPresence() {
-
+	if (!g_edit_handle || !g_edit_handle->get_edit_state) {
+		return;
+	}
+	int g_edit_state = g_edit_handle->get_edit_state();
+	if (g_edit_state == EDIT_HANDLE::EDIT_STATE_EDIT) {
+		edit_state = u8"ç·¨é›†ä¸­";
+	}
+	else if (g_edit_state == EDIT_HANDLE::EDIT_STATE_PLAY) {
+		edit_state = u8"å†ç”Ÿä¸­";
+	}
+	else if (g_edit_state == EDIT_HANDLE::EDIT_STATE_SAVE) {
+		edit_state = u8"å‡ºåŠ›ä¸­";
+	}
+	else {
+		edit_state = "";
+	}
+	EDIT_INFO info{};
+	g_edit_handle->get_edit_info(&info, sizeof(info));
 	if (isrpcenable == true)
 	{
+		InitDiscord();
+		DiscordRichPresence presence;
+		memset(&presence, 0, sizeof(presence));
+		presence.state = edit_state;
+
 		if (ispfname == false) {
-			InitDiscord();
-			DiscordRichPresence presence;
-			memset(&presence, 0, sizeof(presence));
-			presence.state = u8"•ÒW’†";
-			presence.details = u8"";
-			presence.largeImageKey = "aviutl2";
-			presence.largeImageText = "AviUtl2";
-			Discord_UpdatePresence(&presence);
+			presence.details = "";
 		}
-		else {
+		else{
 			InitDiscord();
 			GetWindowTextW(g_hExEdit2, pfName, 256);
 			std::string pfNameS = WcharToChar(pfName);
-			DiscordRichPresence presence;
-			memset(&presence, 0, sizeof(presence));
-			presence.state = u8"•ÒW’†";
 			presence.details = pfNameS.c_str();
-			presence.largeImageKey = "aviutl2";
-			presence.largeImageText = "AviUtl2";
-			Discord_UpdatePresence(&presence);
 		}
+
+		presence.largeImageKey = "aviutl2";
+		presence.largeImageText = "AviUtl2";
+		Discord_UpdatePresence(&presence);
 	}
 }
 void Update() {
 	while (1) {
 		UpdateDiscordPresence();
-		Sleep(2000);
+		Sleep(1000);
 	}
 }
 
@@ -142,6 +162,19 @@ EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD version) {
 
 EXTERN_C __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host) {
 	host->set_plugin_information(L"DiscordRPC");
+	g_edit_handle = host->create_edit_handle();
+
+	if (g_edit_handle && g_edit_handle->get_host_app_window) {
+		g_hExEdit2 = g_edit_handle->get_host_app_window();
+	}
+}
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
+{
+	if (ul_reason_for_call == DLL_PROCESS_ATTACH) {
+		hInstance = hModule;
+	}
+	return TRUE;
 }
 
 LRESULT CALLBACK RPCSetting(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
