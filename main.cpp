@@ -180,9 +180,6 @@ unsigned __stdcall Update(void* pArguments) {
 	Add_PopupMenu();
 	Sleep(1000);
 	while (1) {
-		if (!CheckPluginMenu()) {
-			Add_PopupMenu();
-		}
 		UpdateDiscordPresence();
 		Sleep(1000);
 	}
