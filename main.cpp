@@ -72,27 +72,54 @@ std::string WcharToChar(const wchar_t* wide_str) {
 	result.resize(converted_size - 1);
 	return result;
 }
-unsigned __stdcall Add_PopupMenu(void* pArguments) {
-	//g_hExEdit2 = FindWindowW(L"aviutl2Manager", NULL);
-	if (!g_hExEdit2) {
+bool CheckPluginMenu()
+{
+	if (!g_hViewMenu) return false;
+
+	int count = GetMenuItemCount(g_hViewMenu);
+	for (int i = 0; i < count; i++) {
+		wchar_t text[256]{};
+		GetMenuStringW(g_hViewMenu, i, text, 256, MF_BYPOSITION);
+		if (wcscmp(text, L"DiscordRPCの設定") == 0) {
+			return true;
+		}
 	}
+	return false;
+}
+
+void Add_PopupMenu()
+{
+	if (!g_hExEdit2) return;
 
 	HMENU hMenuBar = GetMenu(g_hExEdit2);
+	if (!hMenuBar) return;
+
 	g_hViewMenu = GetSubMenu(hMenuBar, 3);
-	if (!g_hViewMenu) {
+	if (!g_hViewMenu) return;
+
+	if (CheckPluginMenu()) return;
+
+	if (hRpcMenu) {
+		DestroyMenu(hRpcMenu);
+		hRpcMenu = NULL;
 	}
+
 	hRpcMenu = CreatePopupMenu();
+	if (!hRpcMenu) return;
 
 	UINT rpcFlag = isrpcenable ? MF_CHECKED : MF_UNCHECKED;
 	AppendMenuW(hRpcMenu, MF_STRING | rpcFlag, MENU_ID_ENABLE_RPC, L"RPCを有効化");
 
 	UINT pfnameFlag = ispfname ? MF_CHECKED : MF_UNCHECKED;
 	AppendMenuW(hRpcMenu, MF_STRING | pfnameFlag, MENU_ID_SHOW_PFNAME, L"プロジェクト名を表示");
-	AppendMenuW(g_hViewMenu, MF_POPUP, (UINT_PTR)hRpcMenu, L"DiscordRPCの設定");
-	g_pfnOriginalWndProc = (WNDPROC)SetWindowLongPtrW(g_hExEdit2, GWLP_WNDPROC, (LONG_PTR)RPCSetting);
-	Sleep(2000);
-	Update();
-	return 0;
+
+	InsertMenuW(g_hViewMenu, 0, MF_BYPOSITION | MF_POPUP, (UINT_PTR)hRpcMenu, L"DiscordRPCの設定");
+	DrawMenuBar(g_hExEdit2);
+
+	if (!g_pfnOriginalWndProc) {
+		g_pfnOriginalWndProc =
+			(WNDPROC)SetWindowLongPtrW(g_hExEdit2, GWLP_WNDPROC, (LONG_PTR)RPCSetting);
+	}
 }
 
 void InitDiscord()
@@ -135,7 +162,7 @@ void UpdateDiscordPresence() {
 		if (ispfname == false) {
 			presence.details = "";
 		}
-		else{
+		else {
 			InitDiscord();
 			GetWindowTextW(g_hExEdit2, pfName, 256);
 			std::string pfNameS = WcharToChar(pfName);
@@ -147,21 +174,41 @@ void UpdateDiscordPresence() {
 		Discord_UpdatePresence(&presence);
 	}
 }
-void Update() {
+
+unsigned __stdcall Update(void* pArguments) {
+	//g_hExEdit2 = FindWindowW(L"aviutl2Manager", NULL);
+	Add_PopupMenu();
+	Sleep(1000);
 	while (1) {
+		if (!CheckPluginMenu()) {
+			Add_PopupMenu();
+		}
 		UpdateDiscordPresence();
 		Sleep(1000);
 	}
+	return 0;
 }
 
 EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD version) {
 	LoadSettings();
-	_beginthreadex(NULL, 0, &Add_PopupMenu, NULL, 0, NULL);
+	_beginthreadex(NULL, 0, &Update, NULL, 0, NULL);
 	return true;
 }
 
+COMMON_PLUGIN_TABLE common_plugin_table = {
+	L"DiscordRPC",
+	L"DiscordRPC 1.3.1"
+};
+
+EXTERN_C __declspec(dllexport) DWORD RequiredVersion() {
+	return 2004100;
+}
+
+EXTERN_C __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(void) {
+	return &common_plugin_table;
+}
+
 EXTERN_C __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host) {
-	host->set_plugin_information(L"DiscordRPC");
 	g_edit_handle = host->create_edit_handle();
 
 	if (g_edit_handle && g_edit_handle->get_host_app_window) {
