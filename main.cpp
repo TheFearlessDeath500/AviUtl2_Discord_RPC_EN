@@ -34,6 +34,8 @@ static EDIT_HANDLE* g_edit_handle = nullptr;
 int current_frame = 0;
 const char* edit_state = nullptr;
 
+bool g_timeline_ready = false;
+
 std::string GetConfigIniPath()
 {
 	char path[MAX_PATH];
@@ -121,6 +123,10 @@ void Add_PopupMenu()
 			(WNDPROC)SetWindowLongPtrW(g_hExEdit2, GWLP_WNDPROC, (LONG_PTR)RPCSetting);
 	}
 }
+void ProjectLoad(PROJECT_FILE* project)
+{
+	g_timeline_ready = true;
+}
 
 void InitDiscord()
 {
@@ -134,6 +140,9 @@ void InitDiscord()
 }
 
 void UpdateDiscordPresence() {
+	if (!g_timeline_ready) {
+		return;
+	}
 	if (!g_edit_handle || !g_edit_handle->get_edit_state) {
 		return;
 	}
@@ -178,7 +187,6 @@ void UpdateDiscordPresence() {
 unsigned __stdcall Update(void* pArguments) {
 	//g_hExEdit2 = FindWindowW(L"aviutl2Manager", NULL);
 	Add_PopupMenu();
-	Sleep(1000);
 	while (1) {
 		UpdateDiscordPresence();
 		Sleep(1000);
@@ -211,6 +219,7 @@ EXTERN_C __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host) {
 	if (g_edit_handle && g_edit_handle->get_host_app_window) {
 		g_hExEdit2 = g_edit_handle->get_host_app_window();
 	}
+	host->register_project_load_handler(ProjectLoad);
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
