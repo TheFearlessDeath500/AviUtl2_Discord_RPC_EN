@@ -82,7 +82,7 @@ bool CheckPluginMenu()
 	for (int i = 0; i < count; i++) {
 		wchar_t text[256]{};
 		GetMenuStringW(g_hViewMenu, i, text, 256, MF_BYPOSITION);
-		if (wcscmp(text, L"DiscordRPCの設定") == 0) {
+		if (wcscmp(text, L"Discord RPC Settings") == 0) {
 			return true;
 		}
 	}
@@ -110,12 +110,12 @@ void Add_PopupMenu()
 	if (!hRpcMenu) return;
 
 	UINT rpcFlag = isrpcenable ? MF_CHECKED : MF_UNCHECKED;
-	AppendMenuW(hRpcMenu, MF_STRING | rpcFlag, MENU_ID_ENABLE_RPC, L"RPCを有効化");
+	AppendMenuW(hRpcMenu, MF_STRING | rpcFlag, MENU_ID_ENABLE_RPC, L"Enable RPC");
 
 	UINT pfnameFlag = ispfname ? MF_CHECKED : MF_UNCHECKED;
-	AppendMenuW(hRpcMenu, MF_STRING | pfnameFlag, MENU_ID_SHOW_PFNAME, L"プロジェクト名を表示");
+	AppendMenuW(hRpcMenu, MF_STRING | pfnameFlag, MENU_ID_SHOW_PFNAME, L"Change Project Name");
 
-	InsertMenuW(g_hViewMenu, 0, MF_BYPOSITION | MF_POPUP, (UINT_PTR)hRpcMenu, L"DiscordRPCの設定");
+	InsertMenuW(g_hViewMenu, 0, MF_BYPOSITION | MF_POPUP, (UINT_PTR)hRpcMenu, L"Discord RPC Settings");
 	DrawMenuBar(g_hExEdit2);
 
 	if (!g_pfnOriginalWndProc) {
@@ -148,13 +148,13 @@ void UpdateDiscordPresence() {
 	}
 	int g_edit_state = g_edit_handle->get_edit_state();
 	if (g_edit_state == EDIT_HANDLE::EDIT_STATE_EDIT) {
-		edit_state = u8"編集中";
+		edit_state = u8"Editing a video";
 	}
 	else if (g_edit_state == EDIT_HANDLE::EDIT_STATE_PLAY) {
-		edit_state = u8"再生中";
+		edit_state = u8"Playing a video";
 	}
 	else if (g_edit_state == EDIT_HANDLE::EDIT_STATE_SAVE) {
-		edit_state = u8"出力中";
+		edit_state = u8"Outputting...";
 	}
 	else {
 		edit_state = "";
