@@ -154,7 +154,7 @@ void UpdateDiscordPresence() {
 		edit_state = u8"Playing a video";
 	}
 	else if (g_edit_state == EDIT_HANDLE::EDIT_STATE_SAVE) {
-		edit_state = u8"Outputting...";
+		edit_state = u8"Exporting...";
 	}
 	else {
 		edit_state = "";
